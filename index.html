@@ -31,12 +31,12 @@
                 🌱 บัญชีค่ายต้นกล้าฯ
             </div>
             <button id="adminToggleBtn" onclick="toggleAdmin()" class="bg-red-500 hover:bg-red-600 text-white text-xs px-3 py-1.5 rounded-full flex items-center gap-1 shadow-sm transition font-medium">
-                <i class="ph ph-lock-key"></i> โหมดแก้ไข
+                <i class="ph ph-lock-key"></i> แอดมิน (ลบข้อมูล)
             </button>
         </header>
 
         <!-- Main Content (Scrollable) -->
-        <div class="flex-1 overflow-y-auto pb-10">
+        <div class="flex-1 overflow-y-auto pb-24">
             
             <!-- Summary Cards -->
             <div class="grid grid-cols-3 gap-3 p-4">
@@ -64,22 +64,36 @@
                 </div>
             </div>
 
-            <!-- Form Section -->
-            <div class="px-4 pb-6 relative">
-                <h3 class="font-bold text-gray-800 mb-3 flex items-center gap-2 text-sm">
-                    📝 บันทึกรายการใหม่
-                </h3>
-                
-                <!-- Overlay when NOT Admin -->
-                <div id="formOverlay" class="absolute top-[40px] bottom-6 left-4 right-4 bg-white/60 backdrop-blur-[2px] z-10 flex flex-col items-center justify-center rounded-xl border border-white/50 transition-all duration-300">
-                    <div class="bg-white p-3 rounded-full shadow-sm mb-2 text-gray-400">
-                        <i class="ph ph-lock-key text-2xl"></i>
-                    </div>
-                    <p class="text-xs text-gray-500 font-medium">กรุณาเปิดโหมดแก้ไขเพื่อบันทึก</p>
+            <!-- History List -->
+            <div class="px-4 pb-6">
+                <h3 class="font-bold text-gray-800 mb-3 text-sm">ประวัติการเบิกจ่าย</h3>
+                <div id="txList" class="space-y-2">
+                    <!-- History items injected here -->
                 </div>
+            </div>
 
-                <form id="txForm" onsubmit="addTransaction(event)" class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm space-y-4 relative z-0">
-                    
+        </div> <!-- End Main Content -->
+
+        <!-- Floating Action Button (Centered) -->
+        <button onclick="openModal('addModal')" class="absolute bottom-8 left-1/2 transform -translate-x-1/2 bg-[#16a34a] hover:bg-green-700 text-white rounded-full flex items-center justify-center gap-2 shadow-[0_8px_20px_rgba(22,163,74,0.5)] transition-transform hover:scale-105 z-40 px-6 py-3.5 border border-white/20 whitespace-nowrap">
+            <i class="ph ph-plus text-xl font-bold"></i>
+            <span class="font-semibold text-sm tracking-wide">เพิ่มรายการ</span>
+        </button>
+
+        <!-- Add Transaction Modal -->
+        <div id="addModal" class="hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center px-0 sm:px-4 pb-0 sm:pb-6">
+            <div class="absolute inset-0 bg-gray-900/40 backdrop-blur-sm" onclick="closeModal('addModal')"></div>
+            <div class="bg-white rounded-t-3xl sm:rounded-2xl shadow-xl w-full max-w-md relative z-10 modal-enter p-5 sm:p-6 max-h-[90vh] overflow-y-auto">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="font-bold text-gray-800 flex items-center gap-2 text-base">
+                        📝 บันทึกรายการใหม่
+                    </h3>
+                    <button type="button" onclick="closeModal('addModal')" class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 transition">
+                        <i class="ph ph-x font-bold"></i>
+                    </button>
+                </div>
+                
+                <form id="txForm" onsubmit="addTransaction(event)" class="space-y-4">
                     <!-- Type Toggle -->
                     <div class="flex gap-2 bg-gray-50 p-1 rounded-lg border border-gray-100">
                         <button type="button" id="btnIncome" onclick="setTxType('รายรับ')" class="flex-1 py-2 rounded-md font-medium text-xs transition bg-white text-gray-600 shadow-sm border border-gray-200">
@@ -111,31 +125,22 @@
                             </select>
                         </div>
                         <div>
-                            <label class="block text-[11px] font-medium text-gray-500 mb-1">ผู้เบิก/ผู้รับ</label>
-                            <input type="text" name="by" placeholder="เช่น แบมัง..." required class="w-full p-2.5 rounded-lg border border-gray-200 focus:border-green-500 outline-none text-xs bg-gray-50">
+                            <label class="block text-[11px] font-medium text-gray-500 mb-1">ผู้เบิก/ผู้รับ (ใส่หรือไม่ก็ได้)</label>
+                            <input type="text" name="by" placeholder="เช่น แบมัง..." class="w-full p-2.5 rounded-lg border border-gray-200 focus:border-green-500 outline-none text-xs bg-gray-50">
                         </div>
                     </div>
 
                     <div>
-                        <label class="block text-[11px] font-medium text-gray-500 mb-1">รายละเอียด / หมายเหตุ</label>
-                        <input type="text" name="note" placeholder="เช่น ค่าข้าวกล่อง, สปอนเซอร์..." required class="w-full p-2.5 rounded-lg border border-gray-200 focus:border-green-500 outline-none text-xs bg-gray-50">
+                        <label class="block text-[11px] font-medium text-gray-500 mb-1">รายละเอียด / หมายเหตุ (ใส่หรือไม่ก็ได้)</label>
+                        <input type="text" name="note" placeholder="เช่น ค่าข้าวกล่อง, สปอนเซอร์..." class="w-full p-2.5 rounded-lg border border-gray-200 focus:border-green-500 outline-none text-xs bg-gray-50">
                     </div>
 
-                    <button type="submit" class="w-full bg-[#16a34a] hover:bg-green-700 text-white p-3 rounded-lg font-semibold text-sm transition flex items-center justify-center gap-2 shadow-sm">
+                    <button type="submit" class="w-full bg-[#16a34a] hover:bg-green-700 text-white p-3 rounded-xl font-semibold text-sm transition flex items-center justify-center gap-2 shadow-sm mt-2">
                         <i class="ph ph-floppy-disk text-lg"></i> บันทึกข้อมูล
                     </button>
                 </form>
             </div>
-
-            <!-- History List -->
-            <div class="px-4 pb-6">
-                <h3 class="font-bold text-gray-800 mb-3 text-sm">ประวัติการเบิกจ่าย</h3>
-                <div id="txList" class="space-y-2">
-                    <!-- History items injected here -->
-                </div>
-            </div>
-
-        </div> <!-- End Main Content -->
+        </div>
 
         <!-- Global Loader -->
         <div id="globalLoader" class="absolute inset-0 bg-white/80 z-[100] hidden items-center justify-center backdrop-blur-sm">
@@ -153,8 +158,8 @@
                     <div class="w-10 h-10 bg-gray-100 text-gray-700 rounded-full flex items-center justify-center mx-auto mb-2">
                         <i class="ph ph-lock-key text-xl"></i>
                     </div>
-                    <h3 class="text-base font-bold text-gray-800">เข้าสู่ระบบ (Admin)</h3>
-                    <p class="text-[11px] text-gray-500 mt-1">กรุณากรอกรหัส PIN เพื่อเปิดโหมดแก้ไข</p>
+                    <h3 class="text-base font-bold text-gray-800">โหมดแอดมิน (ลบข้อมูล)</h3>
+                    <p class="text-[11px] text-gray-500 mt-1">กรุณากรอกรหัส PIN เพื่อจัดการข้อมูล</p>
                 </div>
                 <form onsubmit="handleLogin(event)">
                     <input type="password" id="adminPin" placeholder="รหัส 4 หลัก" required class="w-full text-center text-xl tracking-[0.5em] px-4 py-3 rounded-xl border border-gray-200 focus:border-green-500 outline-none transition mb-4 bg-gray-50">
@@ -225,8 +230,7 @@
 
         async function addTransaction(event) {
             event.preventDefault();
-            if (!state.isAdmin) return showToast("เฉพาะ Admin เท่านั้น", "error");
-
+            
             const form = event.target;
             const newTx = {
                 id: Date.now().toString(),
@@ -234,8 +238,8 @@
                 type: form.type.value,
                 category: form.category.value,
                 amount: parseFloat(form.amount.value),
-                note: form.note.value,
-                by: form.by.value
+                note: form.note.value || "",
+                by: form.by.value || ""
             };
 
             setLoading(true);
@@ -248,6 +252,7 @@
                 });
                 showToast("บันทึกสำเร็จ", "success");
                 form.reset();
+                closeModal('addModal'); // ปิดหน้าต่าง Popup เมื่อบันทึกเสร็จ
                 document.getElementById('txDate').valueAsDate = new Date();
                 setTimeout(() => fetchData(), 1500);
             } catch (error) {
@@ -302,7 +307,7 @@
         function toggleAdmin() {
             if (state.isAdmin) {
                 state.isAdmin = false;
-                showToast("ออกจากโหมดแก้ไขแล้ว", "success");
+                showToast("ออกจากระบบแอดมินแล้ว", "success");
                 renderUI();
             } else {
                 openModal('loginModal');
@@ -316,7 +321,7 @@
                 state.isAdmin = true;
                 closeModal('loginModal');
                 document.getElementById('adminPin').value = '';
-                showToast("ปลดล็อคโหมดแก้ไข", "success");
+                showToast("ปลดล็อคสิทธิ์การลบข้อมูล", "success");
                 renderUI();
             } else {
                 showToast("รหัส PIN ไม่ถูกต้อง!", "error");
@@ -376,6 +381,10 @@
             } else {
                 sortedTx.forEach(tx => {
                     const isInc = tx.type === 'รายรับ';
+                    
+                    // จัดการกรณีไม่ได้กรอกรายละเอียด หรือ ผู้รับ
+                    const detailText = [tx.note, tx.by].filter(Boolean).join(' • ') || '-';
+
                     listEl.innerHTML += `
                         <div class="bg-white p-3 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between gap-2">
                             <div class="flex items-center gap-3 overflow-hidden">
@@ -384,7 +393,7 @@
                                 </div>
                                 <div class="flex flex-col truncate text-left">
                                     <span class="text-xs font-bold text-gray-800 truncate">${tx.category}</span>
-                                    <span class="text-[10px] text-gray-500 truncate">${tx.note} • ${tx.by}</span>
+                                    <span class="text-[10px] text-gray-500 truncate">${detailText}</span>
                                     <span class="text-[9px] text-gray-400">${formatDate(tx.date)}</span>
                                 </div>
                             </div>
@@ -404,18 +413,13 @@
             }
 
             // 4. Update Admin States
-            const overlay = document.getElementById('formOverlay');
             const toggleBtn = document.getElementById('adminToggleBtn');
             
             if (state.isAdmin) {
-                overlay.style.opacity = '0';
-                setTimeout(() => overlay.style.pointerEvents = 'none', 300);
                 toggleBtn.innerHTML = `<i class="ph ph-lock-open"></i> ออกจากระบบ`;
                 toggleBtn.className = "bg-white/20 hover:bg-white/30 text-white text-xs px-3 py-1.5 rounded-full flex items-center gap-1 transition font-medium border border-white/30";
             } else {
-                overlay.style.opacity = '1';
-                overlay.style.pointerEvents = 'auto';
-                toggleBtn.innerHTML = `<i class="ph ph-lock-key"></i> โหมดแก้ไข`;
+                toggleBtn.innerHTML = `<i class="ph ph-lock-key"></i> แอดมิน (ลบข้อมูล)`;
                 toggleBtn.className = "bg-red-500 hover:bg-red-600 text-white text-xs px-3 py-1.5 rounded-full flex items-center gap-1 shadow-sm transition font-medium";
             }
         }
