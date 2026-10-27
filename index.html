@@ -8,6 +8,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- Phosphor Icons -->
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <!-- Chart.js สำหรับกราฟวงแหวน -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body { font-family: 'Sarabun', 'Inter', sans-serif; background-color: #f3f4f6; }
         /* Loader */
@@ -31,7 +33,7 @@
                 🌱 บัญชีค่ายต้นกล้าฯ
             </div>
             <button id="adminToggleBtn" onclick="toggleAdmin()" class="bg-red-500 hover:bg-red-600 text-white text-xs px-3 py-1.5 rounded-full flex items-center gap-1 shadow-sm transition font-medium">
-                <i class="ph ph-lock-key"></i> แอดมิน (ลบข้อมูล)
+                <i class="ph ph-lock-key"></i> แอดมิน 
             </button>
         </header>
 
@@ -58,8 +60,18 @@
             <div class="px-4 pb-4">
                 <div class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
                     <h3 class="text-xs font-semibold text-gray-500 mb-3 text-center">สัดส่วนรายจ่ายแยกตามฝ่าย</h3>
-                    <div id="expenseChart" class="space-y-3">
-                        <!-- Chart bars injected here -->
+                    
+                    <!-- Chart Container -->
+                    <div class="relative w-full max-w-[200px] aspect-square mx-auto flex items-center justify-center">
+                        <canvas id="expenseDonutChart"></canvas>
+                        <div id="expenseChartEmpty" class="absolute inset-0 flex items-center justify-center text-[11px] text-gray-400 hidden">
+                            ยังไม่มีข้อมูลรายจ่าย
+                        </div>
+                    </div>
+                    
+                    <!-- Custom Legend (หมวดหมู่และสี) -->
+                    <div id="customLegend" class="mt-4 grid grid-cols-2 gap-2 text-[10px]">
+                        <!-- Legend items injected here -->
                     </div>
                 </div>
             </div>
@@ -158,7 +170,7 @@
                     <div class="w-10 h-10 bg-gray-100 text-gray-700 rounded-full flex items-center justify-center mx-auto mb-2">
                         <i class="ph ph-lock-key text-xl"></i>
                     </div>
-                    <h3 class="text-base font-bold text-gray-800">โหมดแอดมิน (ลบข้อมูล)</h3>
+                    <h3 class="text-base font-bold text-gray-800">โหมดแอดมิน </h3>
                     <p class="text-[11px] text-gray-500 mt-1">กรุณากรอกรหัส PIN เพื่อจัดการข้อมูล</p>
                 </div>
                 <form onsubmit="handleLogin(event)">
@@ -200,6 +212,8 @@
             isAdmin: false,
             isLoading: false
         };
+
+        let expenseChartInstance = null; // ตัวแปรเก็บข้อมูลกราฟ
 
         // หมวดหมู่
         const CATS = {
@@ -349,28 +363,109 @@
             document.getElementById('totalExpense').innerText = formatMoney(tExp);
             document.getElementById('totalBalance').innerText = formatMoney(tInc - tExp);
 
-            // 2. Render Chart (Bars)
-            const chartEl = document.getElementById('expenseChart');
-            chartEl.innerHTML = '';
+            // 2. Render Chart (Donut Chart)
+            const emptyLabel = document.getElementById('expenseChartEmpty');
+            const canvasEl = document.getElementById('expenseDonutChart');
+            const legendEl = document.getElementById('customLegend');
+            
             if (tExp === 0) {
-                chartEl.innerHTML = `<div class="text-center text-[11px] text-gray-400 py-2">ยังไม่มีข้อมูลรายจ่าย</div>`;
+                emptyLabel.classList.remove('hidden');
+                canvasEl.style.display = 'none';
+                legendEl.innerHTML = '';
+                if (expenseChartInstance) {
+                    expenseChartInstance.destroy();
+                    expenseChartInstance = null;
+                }
             } else {
-                // Sort categories by highest expense
+                emptyLabel.classList.add('hidden');
+                canvasEl.style.display = 'block';
+                
+                // เตรียมข้อมูลกราฟ
                 const sortedCats = Object.entries(expSummary).sort((a,b) => b[1] - a[1]);
-                sortedCats.forEach(([cat, amt]) => {
-                    const percent = ((amt / tExp) * 100).toFixed(1);
-                    chartEl.innerHTML += `
-                        <div class="flex flex-col gap-1">
-                            <div class="flex justify-between text-[10px] font-medium text-gray-600">
-                                <span>${cat}</span>
-                                <span>฿${formatMoney(amt)}</span>
-                            </div>
-                            <div class="w-full bg-gray-100 rounded-full h-1.5">
-                                <div class="bg-red-400 h-1.5 rounded-full" style="width: ${percent}%"></div>
-                            </div>
+                const labels = sortedCats.map(item => item[0]);
+                const dataValues = sortedCats.map(item => item[1]);
+                
+                // ชุดสีพาสเทลสไตล์มินิมอล
+                const bgColors = ['#f472b6', '#60a5fa', '#34d399', '#fbbf24', '#a78bfa', '#f87171', '#9ca3af'];
+                
+                // สร้าง Legend (ป้ายกำกับด้านล่างกราฟ)
+                legendEl.innerHTML = '';
+                sortedCats.forEach((cat, index) => {
+                    const color = bgColors[index % bgColors.length];
+                    const percent = ((cat[1] / tExp) * 100).toFixed(1);
+                    legendEl.innerHTML += `
+                        <div class="flex items-center gap-1.5 p-1.5 bg-gray-50 rounded-lg">
+                            <div class="w-3 h-3 rounded-full shrink-0 shadow-sm" style="background-color: ${color}"></div>
+                            <div class="flex-1 truncate text-gray-600 font-medium">${cat[0]}</div>
+                            <div class="font-bold text-gray-800">${percent}%</div>
                         </div>
                     `;
                 });
+
+                // Plugin เขียนยอดรวมตรงกลางวงแหวน
+                const centerTextPlugin = {
+                    id: 'centerText',
+                    beforeDraw: function(chart) {
+                        const width = chart.width, height = chart.height, ctx = chart.ctx;
+                        ctx.restore();
+                        
+                        // ตัวเลขยอดรวม
+                        ctx.font = "bold 16px 'Inter', sans-serif";
+                        ctx.textBaseline = "middle";
+                        ctx.fillStyle = "#1f2937"; // text-gray-800
+                        const text = "฿" + formatMoney(tExp),
+                            textX = Math.round((width - ctx.measureText(text).width) / 2),
+                            textY = height / 2;
+                        ctx.fillText(text, textX, textY);
+                        
+                        // คำว่า "รายจ่าย"
+                        ctx.font = "11px 'Sarabun', sans-serif";
+                        ctx.fillStyle = "#6b7280"; // text-gray-500
+                        const label = "รายจ่าย",
+                            labelX = Math.round((width - ctx.measureText(label).width) / 2),
+                            labelY = (height / 2) + 18;
+                        ctx.fillText(label, labelX, labelY);
+                        ctx.save();
+                    }
+                };
+
+                // วาดกราฟหรืออัปเดตข้อมูล
+                if (expenseChartInstance) {
+                    expenseChartInstance.data.labels = labels;
+                    expenseChartInstance.data.datasets[0].data = dataValues;
+                    expenseChartInstance.update();
+                } else {
+                    expenseChartInstance = new Chart(canvasEl, {
+                        type: 'doughnut',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                data: dataValues,
+                                backgroundColor: bgColors,
+                                borderWidth: 2,
+                                borderColor: '#ffffff',
+                                hoverOffset: 5
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            cutout: '75%', // ความหนาของวงแหวน
+                            plugins: {
+                                legend: { display: false }, // ซ่อน Legend เดิมของ Chart.js เพื่อใช้แบบที่เขียนเองด้านล่าง
+                                tooltip: {
+                                    padding: 10,
+                                    callbacks: {
+                                        label: function(context) {
+                                            return ' ฿' + formatMoney(context.parsed);
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        plugins: [centerTextPlugin]
+                    });
+                }
             }
 
             // 3. Render Transaction List
@@ -419,7 +514,7 @@
                 toggleBtn.innerHTML = `<i class="ph ph-lock-open"></i> ออกจากระบบ`;
                 toggleBtn.className = "bg-white/20 hover:bg-white/30 text-white text-xs px-3 py-1.5 rounded-full flex items-center gap-1 transition font-medium border border-white/30";
             } else {
-                toggleBtn.innerHTML = `<i class="ph ph-lock-key"></i> แอดมิน (ลบข้อมูล)`;
+                toggleBtn.innerHTML = `<i class="ph ph-lock-key"></i> แอดมิน`;
                 toggleBtn.className = "bg-red-500 hover:bg-red-600 text-white text-xs px-3 py-1.5 rounded-full flex items-center gap-1 shadow-sm transition font-medium";
             }
         }
