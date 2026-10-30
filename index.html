@@ -25,10 +25,10 @@
 <body class="text-gray-800 antialiased flex justify-center">
 
     <!-- Mobile Container -->
-    <div class="w-full max-w-md bg-gray-50 min-h-screen shadow-2xl relative overflow-x-hidden flex flex-col">
+    <div class="w-full max-w-md bg-gray-50 h-[100dvh] shadow-2xl relative overflow-x-hidden flex flex-col">
         
         <!-- Header -->
-        <header class="bg-[#16a34a] text-white p-4 flex justify-between items-center sticky top-0 z-40 shadow-sm">
+        <header class="bg-[#16a34a] text-white p-4 flex justify-between items-center sticky top-0 z-40 shadow-sm shrink-0">
             <div class="flex items-center gap-2 font-semibold text-lg">
                 🌱 บัญชีค่ายต้นกล้าแห่งศรัทธา
             </div>
@@ -86,8 +86,8 @@
 
         </div> <!-- End Main Content -->
 
-        <!-- Floating Action Button (Centered) -->
-        <button onclick="openModal('addModal')" class="absolute bottom-8 left-1/2 transform -translate-x-1/2 bg-[#16a34a] hover:bg-green-700 text-white rounded-full flex items-center justify-center gap-2 shadow-[0_8px_20px_rgba(22,163,74,0.5)] transition-transform hover:scale-105 z-40 px-6 py-3.5 border border-white/20 whitespace-nowrap">
+        <!-- Floating Action Button -->
+        <button onclick="openModal('addModal')" class="fixed bottom-8 left-1/2 transform -translate-x-1/2 bg-[#16a34a] hover:bg-green-700 text-white rounded-full flex items-center justify-center gap-2 shadow-[0_8px_20px_rgba(22,163,74,0.5)] transition-transform hover:scale-105 z-40 px-6 py-3.5 border border-white/20 whitespace-nowrap">
             <i class="ph ph-plus text-xl font-bold"></i>
             <span class="font-semibold text-sm tracking-wide">เพิ่มรายการ</span>
         </button>
@@ -213,9 +213,8 @@
             isLoading: false
         };
 
-        let expenseChartInstance = null; // ตัวแปรเก็บข้อมูลกราฟ
+        let expenseChartInstance = null;
 
-        // หมวดหมู่
         const CATS = {
             'รายรับ': ["เงินสนับสนุน", "ค่าลงทะเบียน", "อื่นๆ"],
             'รายจ่าย': ["ค่าอาหาร/ครัว", "ค่าอุปกรณ์กิจกรรม", "ค่าสถานที่/บริการ", "ค่าเดินทาง", "ยา/สวัสดิการ", "ค่าเอกสาร/PR", "อื่นๆ"]
@@ -223,7 +222,7 @@
 
         async function initApp() {
             document.getElementById('txDate').valueAsDate = new Date();
-            setTxType('รายจ่าย'); // Default
+            setTxType('รายจ่าย');
             await fetchData();
         }
 
@@ -258,17 +257,21 @@
 
             setLoading(true);
             try {
-                await fetch(CONFIG.GAS_URL, {
+                fetch(CONFIG.GAS_URL, {
                     method: 'POST',
                     mode: 'no-cors',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ action: 'add', data: newTx })
                 });
+                
                 showToast("บันทึกสำเร็จ", "success");
                 form.reset();
-                closeModal('addModal'); // ปิดหน้าต่าง Popup เมื่อบันทึกเสร็จ
+                closeModal('addModal');
                 document.getElementById('txDate').valueAsDate = new Date();
-                setTimeout(() => fetchData(), 1500);
+                
+                state.transactions.push(newTx);
+                renderUI();
+                setLoading(false);
             } catch (error) {
                 showToast("บันทึกข้อมูลล้มเหลว", "error");
                 setLoading(false);
@@ -280,22 +283,24 @@
             showConfirmModal("ต้องการลบรายการนี้ใช่หรือไม่?", async () => {
                 setLoading(true);
                 try {
-                    await fetch(CONFIG.GAS_URL, {
+                    fetch(CONFIG.GAS_URL, {
                         method: 'POST',
                         mode: 'no-cors',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ action: 'delete', id: id })
                     });
+                    
                     showToast("ลบข้อมูลสำเร็จ", "success");
-                    setTimeout(() => fetchData(), 1500);
+                    
+                    state.transactions = state.transactions.filter(tx => tx.id !== id);
+                    renderUI();
+                    setLoading(false);
                 } catch (error) {
                     showToast("ลบล้มเหลว", "error");
                     setLoading(false);
                 }
             });
         }
-
-        // --- UI Interactions ---
 
         function setTxType(type) {
             document.getElementById('txType').value = type;
@@ -310,7 +315,6 @@
                 btnInc.className = 'flex-1 py-2 rounded-md font-medium text-xs transition bg-white text-gray-600 shadow-sm border border-gray-200';
             }
 
-            // Update Categories
             const catSelect = document.getElementById('txCategory');
             catSelect.innerHTML = '';
             CATS[type].forEach(cat => {
@@ -343,13 +347,12 @@
         }
 
         function renderUI() {
-            // 1. Calculate Summary & Chart
             let tInc = 0, tExp = 0;
             let expSummary = {};
 
-            const sortedTx = [...state.transactions].sort((a, b) => new Date(b.date) - new Date(a.date));
+            const allSortedTx = [...state.transactions].sort((a, b) => new Date(b.date) - new Date(a.date));
             
-            sortedTx.forEach(tx => {
+            allSortedTx.forEach(tx => {
                 const amt = Number(tx.amount);
                 if (tx.type === 'รายรับ') {
                     tInc += amt;
@@ -363,7 +366,6 @@
             document.getElementById('totalExpense').innerText = formatMoney(tExp);
             document.getElementById('totalBalance').innerText = formatMoney(tInc - tExp);
 
-            // 2. Render Chart (Donut Chart)
             const emptyLabel = document.getElementById('expenseChartEmpty');
             const canvasEl = document.getElementById('expenseDonutChart');
             const legendEl = document.getElementById('customLegend');
@@ -380,15 +382,12 @@
                 emptyLabel.classList.add('hidden');
                 canvasEl.style.display = 'block';
                 
-                // เตรียมข้อมูลกราฟ
                 const sortedCats = Object.entries(expSummary).sort((a,b) => b[1] - a[1]);
                 const labels = sortedCats.map(item => item[0]);
                 const dataValues = sortedCats.map(item => item[1]);
                 
-                // ชุดสีพาสเทลสไตล์มินิมอล
                 const bgColors = ['#f472b6', '#60a5fa', '#34d399', '#fbbf24', '#a78bfa', '#f87171', '#9ca3af'];
                 
-                // สร้าง Legend (ป้ายกำกับด้านล่างกราฟ)
                 legendEl.innerHTML = '';
                 sortedCats.forEach((cat, index) => {
                     const color = bgColors[index % bgColors.length];
@@ -402,25 +401,22 @@
                     `;
                 });
 
-                // Plugin เขียนยอดรวมตรงกลางวงแหวน
                 const centerTextPlugin = {
                     id: 'centerText',
                     beforeDraw: function(chart) {
                         const width = chart.width, height = chart.height, ctx = chart.ctx;
                         ctx.restore();
                         
-                        // ตัวเลขยอดรวม
                         ctx.font = "bold 16px 'Inter', sans-serif";
                         ctx.textBaseline = "middle";
-                        ctx.fillStyle = "#1f2937"; // text-gray-800
+                        ctx.fillStyle = "#1f2937";
                         const text = "฿" + formatMoney(tExp),
                             textX = Math.round((width - ctx.measureText(text).width) / 2),
                             textY = height / 2;
                         ctx.fillText(text, textX, textY);
                         
-                        // คำว่า "รายจ่าย"
                         ctx.font = "11px 'Sarabun', sans-serif";
-                        ctx.fillStyle = "#6b7280"; // text-gray-500
+                        ctx.fillStyle = "#6b7280";
                         const label = "รายจ่าย",
                             labelX = Math.round((width - ctx.measureText(label).width) / 2),
                             labelY = (height / 2) + 18;
@@ -429,7 +425,6 @@
                     }
                 };
 
-                // วาดกราฟหรืออัปเดตข้อมูล
                 if (expenseChartInstance) {
                     expenseChartInstance.data.labels = labels;
                     expenseChartInstance.data.datasets[0].data = dataValues;
@@ -450,9 +445,9 @@
                         options: {
                             responsive: true,
                             maintainAspectRatio: false,
-                            cutout: '75%', // ความหนาของวงแหวน
+                            cutout: '75%',
                             plugins: {
-                                legend: { display: false }, // ซ่อน Legend เดิมของ Chart.js เพื่อใช้แบบที่เขียนเองด้านล่าง
+                                legend: { display: false },
                                 tooltip: {
                                     padding: 10,
                                     callbacks: {
@@ -468,16 +463,16 @@
                 }
             }
 
-            // 3. Render Transaction List
             const listEl = document.getElementById('txList');
             listEl.innerHTML = '';
-            if (sortedTx.length === 0) {
+            
+            const displayTx = allSortedTx.slice(0, 30);
+            
+            if (displayTx.length === 0) {
                 listEl.innerHTML = `<div class="text-center text-xs text-gray-400 py-8 bg-white rounded-xl border border-gray-100">ยังไม่มีรายการบันทึก</div>`;
             } else {
-                sortedTx.forEach(tx => {
+                displayTx.forEach(tx => {
                     const isInc = tx.type === 'รายรับ';
-                    
-                    // จัดการกรณีไม่ได้กรอกรายละเอียด หรือ ผู้รับ
                     const detailText = [tx.note, tx.by].filter(Boolean).join(' • ') || '-';
 
                     listEl.innerHTML += `
@@ -507,7 +502,6 @@
                 });
             }
 
-            // 4. Update Admin States
             const toggleBtn = document.getElementById('adminToggleBtn');
             
             if (state.isAdmin) {
@@ -519,7 +513,6 @@
             }
         }
 
-        // --- Helpers ---
         function formatMoney(amount) {
             return new Intl.NumberFormat('th-TH', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(amount);
         }
@@ -553,7 +546,6 @@
             setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 2500);
         }
 
-        // Start
         window.onload = initApp;
     </script>
 </body>
